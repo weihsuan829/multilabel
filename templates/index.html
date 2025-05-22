@@ -1,0 +1,364 @@
+index.html
+
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8" />
+    <title>紙質檔案受損分類系統</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}">
+    <noscript><link rel="stylesheet" href="{{ url_for('static', filename='assets/css/noscript.css') }}" /></noscript>
+</head>
+<body class="is-preload">
+
+<!-- 背景動畫 -->
+<div id="bg"></div>
+
+<!-- 主包裝區 -->
+<div id="wrapper">
+
+    <!-- 頁首 -->
+    <header id="header">
+        <div class="logo">
+            <span class="icon fa-file-alt"></span>
+        </div>
+        <div class="content">
+            <div class="inner">
+                <h1>紙質檔案受損分類系統</h1>
+                <p>整合模型預測與 GPT 修復建議</p>
+            </div>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="#intro" class="bold">網站介紹</a></li>
+                <li><a href="#knowledge" class="bold">修復介紹</a></li>
+                <li><a href="#prediction" class="bold">預測上傳</a></li>
+                <li><a href="#gpt_analysis" class="bold">GPT分析</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- 主內容 -->
+    <div id="main">
+
+        <!-- 介紹區 -->
+        <article id="intro">
+            <h2 class="major">網站介紹</h2>
+            <p>本系統提供自動辨識紙質檔案受損類型，並提供修復建議與 GPT 解釋分析，協助檔案修復作業。</p>
+            <p>使用說明：</p>
+            <p>1. 修復介紹：說明紙質檔案常見的10大受損類型及示意圖</p>
+            <p>2. 預測上傳：使用模型進行紙質檔案受損類型之分類，並提供對應的修復方式說明</p>
+            <p>3. GPT：使用模型進行紙質檔案受損類型之分類，並提供GPT提供修復方式及相關知識說明</p>
+        </article>
+
+        <!-- 修復知識 -->
+        <article id="knowledge">
+            <h2 class="major">修復介紹</h2>
+            <p>以下為紙質檔案常見的 10 種受損情況</p>
+            <p>點選任一類別即可查看對應說明與示意圖(紅圈處為受損位置)。</p>
+            
+            <!-- 類別按鈕 -->
+            <div class="repair-buttons">
+                <button onclick="showKnowledge('變色泛黃')">變色泛黃</button>
+                <button onclick="showKnowledge('黴斑')">黴斑</button>
+                <button onclick="showKnowledge('皺褶痕')">皺褶痕</button>
+                <button onclick="showKnowledge('紙張裂痕')">紙張裂痕</button>
+                <button onclick="showKnowledge('孔洞')">孔洞</button>
+                <button onclick="showKnowledge('金屬鏽痕')">金屬鏽痕</button>
+                <button onclick="showKnowledge('膠帶膠痕')">膠帶膠痕</button>
+                <button onclick="showKnowledge('水漬痕')">水漬痕</button>
+                <button onclick="showKnowledge('油墨污漬')">油墨污漬</button>
+                <button onclick="showKnowledge('髒污')">髒污</button>
+            </div>
+            <!-- 顯示區 -->
+            <div id="knowledge-display" style="margin-top: 1em;">
+                <h3 id="knowledge-title"></h3>
+                <pre id="knowledge-text" style="white-space: pre-wrap;"></pre>
+                <img id="knowledge-image" src="" alt="" style="max-width:100%; display: none;" />
+                
+            </div>
+
+        </article>
+
+        <!-- 預測功能區 -->
+        <article id="prediction">
+            <h2 class="major">上傳並預測</h2>
+            <form method="POST" action="{{ url_for('predict') }}" enctype="multipart/form-data">
+                <label>請選擇影像檔案：</label>
+                <div style="display: flex; align-items: center; gap: 1em; flex-wrap: wrap; margin-top: 0.5em;">
+                    <input type="file" name="image" accept="image/*" onchange="previewImage(event)" required>
+                    <div style="display: flex; align-items: center; gap: 0.5em;">
+                        <button type="submit">開始預測</button>
+                        <div id="loading-message" style="display: none;">
+                            <img src="https://i.gifer.com/ZZ5H.gif" alt="loading" style="height: 24px;">
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {% if image_path and not gpt %}
+                <h3>預覽圖片</h3>
+                <img id="preview" src="{{ image_path }}" alt="預覽圖片" style="max-width:100%;">
+
+                <!--
+                {% if prediction %}
+                    <h3>預測結果</h3>
+                    <ul>
+                    {% for item in prediction %}
+                        <li>{{ item }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+                 -->
+
+                {% if prediction %}
+                    <h3>預測結果</h3>
+                    <div class="prediction-tags">
+                        {% for label in prediction %}
+                        <button onclick="showTip('{{ label }}')">{{ label }}</button>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <br><br>
+                <!--
+                {% if suggestions %}
+                    <h3>修復建議</h3>
+                    <ul>
+                    {% for s in suggestions %}
+                        <pre style="white-space: pre-wrap;">{{ s }}</pre>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+                -->
+
+                {% if suggestions %}
+                <h3>修復建議</h3>
+                    {% for s in suggestions %}
+                        {% set label = s.split('：')[0] %}
+                        <div class="tip-block" id="tip-{{ label }}" style="display: none;">
+                        <pre style="white-space: pre-wrap;">{{ s }}</pre>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+
+
+            {% endif %}
+        </article>
+
+        <!-- GPT 分析區 -->
+        <article id="gpt_analysis">
+            <h2 class="major">GPT 分析</h2>
+            <form method="POST" action="{{ url_for('gpt_analysis') }}" enctype="multipart/form-data">
+                <label>請選擇影像檔案：</label>
+                <div style="display: flex; align-items: center; gap: 1em; flex-wrap: wrap; margin-top: 0.5em;">
+                    <input type="file" name="image" accept="image/*" onchange="previewImage(event)" required>
+                    <div style="display: flex; align-items: center; gap: 0.5em;">
+                        <button type="submit">開始預測</button>
+                        <div id="loading-message" style="display: none;">
+                            <img src="https://i.gifer.com/ZZ5H.gif" alt="loading" style="height: 24px;">
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            {% if image_path and gpt %}
+                <h3>預覽圖片</h3>
+                <img id="preview" src="{{ image_path }}" alt="預覽圖片" style="max-width:100%;">
+
+                {% if prediction %}
+                    <h3>模型預測分類結果</h3>
+                    <ul>
+                    {% for item in prediction %}
+                        <li>{{ item }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+
+                {% if summary %}
+                    <h3>GPT 說明</h3>
+                    <p>{{ summary }}</p>
+                {% endif %}
+
+                <!-- GPT 聊天功能區塊 -->
+                <h3>與 GPT 互動</h3>
+                <div id="chat-box" style="background:#222; padding:1em; border-radius:8px; max-height:300px; overflow-y:auto; margin-bottom: 1em; white-space: pre-wrap;"></div>
+
+                <form id="chat-form" style="display: flex; gap: 0.5em;">
+                    <input type="text" id="user-input" placeholder="請輸入您的問題..." style="flex:1; padding:0.5em;" required>
+                    <button type="submit">送出</button>
+                </form>
+            {% endif %}
+        </article>
+
+    </div>
+
+    <!-- 頁尾 -->
+    <footer id="footer">
+        <p class="copyright">&copy; 國立政治大學 圖書資訊與檔案學研究所</p>
+    </footer>
+</div>
+
+<!-- Scripts -->
+<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+
+<script>
+    function showTip(label) {
+      // 隱藏所有
+      document.querySelectorAll('.tip-block').forEach(el => el.style.display = 'none');
+      // 顯示對應 ID
+      const target = document.getElementById('tip-' + label);
+      if (target) target.style.display = 'block';
+    }
+</script>
+
+<script>
+function previewImage(event) {
+    const reader = new FileReader();
+    reader.onload = function () {
+        const output = document.getElementById('preview');
+        output.src = reader.result;
+        output.style.display = 'block';
+    }
+    reader.readAsDataURL(event.target.files[0]);
+}
+</script>
+
+<script>
+    window.addEventListener("DOMContentLoaded", () => {
+        {% if gpt %}
+            const gptTab = document.querySelector('a[href="#gpt_analysis"]');
+            if (gptTab) gptTab.click();
+        {% elif prediction %}
+            const predTab = document.querySelector('a[href="#prediction"]');
+            if (predTab) predTab.click();
+        {% endif %}
+    });
+</script>
+
+<script>
+    const knowledgeData = {
+        "變色泛黃": {
+            img: "{{ url_for('static', filename='images/變色泛黃.png') }}",
+            text: `變色泛黃多發生於紙張邊緣，或出現於交互疊放檔案中的位置。`
+        },
+        "黴斑": {
+            img: "{{ url_for('static', filename='images/黴斑.png') }}",
+            text: `黴害生物或紙張含重金屬雜質等都會導致黴斑現象，褐斑多出現於與空氣接觸面積較大之處，或發生於劣質且製造成本低廉的紙張表面上；手工紙或棉、 宣類紙張與機器製紙比較下，手工紙的褐斑現象較少，黴斑通常以點狀方式呈現。`
+        },
+        "皺褶痕": {
+            img: "{{ url_for('static', filename='images/皺褶痕.png') }}",
+            text: `皺摺痕多發生於紙張邊緣，且常見於散裝或單張的檔案。此外，人員持拿或翻動使用檔案時亦容易產生皺摺痕，將檔案以對折方式進行歸檔也亦產生摺痕。`
+        },
+        "紙張裂痕": {
+            img: "{{ url_for('static', filename='images/紙張裂痕.png') }}",
+            text: `紙張裂痕常見於脆化或交互疊放之檔案文件，當人員持拿或翻頁時，若稍有不慎即可能撕裂檔案，常發生於紙張邊緣或者發生於紙張接縫處。`
+        },
+        "孔洞": {
+            img: "{{ url_for('static', filename='images/孔洞.png') }}",
+            text: `檔案因訂書針或裝訂成冊導致紙材孔洞。蟲害亦會導致孔洞現象，但蟲蛀損害程度不一。`
+        },
+        "金屬鏽痕": {
+            img: "{{ url_for('static', filename='images/金屬鏽痕.png') }}",
+            text: `迴紋針、訂書針、大頭針等釘針類固定檔案用的金屬文具，往往在潮溼的環境下氧化形成金屬鏽蝕汙染與脆化檔案，依據常態，鐵鏽位置出現在邊緣時，通常是由裝訂用迴紋針、訂書針所造成；如果不是出現邊緣時，通常是因為堆疊其上的另一份文件的迴紋針或訂書針的鐵鏽影響導致。`
+        },
+        "膠帶膠痕": {
+            img: "{{ url_for('static', filename='images/膠帶膠痕.png') }}",
+            text: `檔案有時候會黏貼膠帶與貼紙，膠帶膠體變質劣化後容易在紙材上產生膠漬，造成紙張的脆化及變色。`
+        },
+        "水漬痕": {
+            img: "{{ url_for('static', filename='images/水漬痕.png') }}",
+            text: `檔案若曾經遭到水損，若無立即搶救乾燥，容易造成水漬、潮痕與媒材暈染的狀況發生。嚴重水損情況加上未能及時處理會造成檔案遭受到黴菌的危害，導致發霉，進而產生黴斑。若不清除黴斑，其菌落殘留在檔案頁面上，有復發孳生與加速檔案文件劣化的潛在風險`
+        },
+        "油墨污漬": {
+            img: "{{ url_for('static', filename='images/油墨污漬.png') }}",
+            text: `是指水以外的液體汙損，通常是書寫的油墨為多。`
+        },
+        "髒污": {
+            img: "{{ url_for('static', filename='images/髒污.png') }}",
+            text: `髒污多發生於紙張邊緣及摺痕處，在紙張上多半呈現灰色區塊。`
+        }
+    };
+
+    
+    function showKnowledge(label) { 
+        const info = knowledgeData[label];
+        if (!info) return;
+
+        document.getElementById("knowledge-title").textContent = label;
+        document.getElementById("knowledge-image").src = info.img;
+        document.getElementById("knowledge-image").style.display = 'block';
+        document.getElementById("knowledge-text").textContent = info.text;
+    }
+</script>
+
+
+<!-- 加入模型預算中字樣-->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // 預測區 loading
+        const form = document.querySelector('#prediction form');
+        const loading = document.getElementById('loading-message');
+        form.addEventListener('submit', function () {
+            if (loading) loading.style.display = 'block';
+        });
+    
+        // GPT 區 loading
+        const gptForm = document.querySelector('#gpt_analysis form');
+        const gptLoading = gptForm.querySelector('#loading-message');
+        gptForm.addEventListener('submit', function () {
+            if (gptLoading) gptLoading.style.display = 'block';
+        });
+    });
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const chatForm = document.getElementById('chat-form');
+            const chatBox = document.getElementById('chat-box');
+            const userInput = document.getElementById('user-input');
+        
+            if (chatForm) {
+                chatForm.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const message = userInput.value.trim();
+                    if (!message) return;
+        
+                    // 顯示使用者訊息
+                    const userDiv = document.createElement('div');
+                    userDiv.innerHTML = `<strong>你：</strong>${message}`;
+                    chatBox.appendChild(userDiv);
+        
+                    // 清空輸入
+                    userInput.value = '';
+        
+                    // 呼叫後端 GPT API
+                    try {
+                        const res = await fetch("/chat", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ message })
+                        });
+                        const data = await res.json();
+        
+                        const gptDiv = document.createElement('div');
+                        gptDiv.innerHTML = `<strong>GPT：</strong>${data.reply}`;
+                        chatBox.appendChild(gptDiv);
+                        chatBox.scrollTop = chatBox.scrollHeight;
+                    } catch (err) {
+                        alert("發生錯誤，請稍後再試");
+                    }
+                });
+            }
+        });
+        </script>
+        
+    
+
+</body>
+</html>
+
