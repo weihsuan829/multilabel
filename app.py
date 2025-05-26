@@ -88,7 +88,7 @@ def local_llm_summary(predictions, suggestions):
         print("[DEBUG] 發送 prompt 給 Ollama...")
         response = requests.post(
             "http://localhost:11434/api/generate",
-            json={"model": "gemma:2b", "prompt": prompt},
+            json={"model": "tinyllama:latest", "prompt": prompt},
             stream=True
         )
 
